@@ -21,7 +21,14 @@ public abstract class BasePaymentSimulator : IPaymentGateway
     public async Task<PaymentResponse> ProcessPaymentAsync(PaymentRequest request)
     {
         var stopwatch = Stopwatch.StartNew();
-        
+
+        // Validar que se proporcione información de tarjeta para simuladores
+        if (request.Card == null)
+        {
+            throw new ArgumentException("Se requiere información de tarjeta para el simulador. " +
+                "Para pagos reales, use StripePaymentService con StripePaymentMethodId.");
+        }
+
         // Simular latencia de red (100-500ms)
         await Task.Delay(_random.Next(100, 500));
 

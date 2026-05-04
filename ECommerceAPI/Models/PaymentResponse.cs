@@ -64,6 +64,21 @@ public class PaymentResponse
     /// Tiempo de procesamiento en milisegundos
     /// </summary>
     public long ProcessingTimeMs { get; set; }
+
+    /// <summary>
+    /// ID del Payment Intent de Stripe (si se usa Stripe real)
+    /// </summary>
+    public string? StripePaymentIntentId { get; set; }
+
+    /// <summary>
+    /// Client Secret de Stripe para confirmar el pago en el cliente
+    /// </summary>
+    public string? StripeClientSecret { get; set; }
+
+    /// <summary>
+    /// Indica si requiere autenticación adicional (3D Secure)
+    /// </summary>
+    public bool RequiresAction { get; set; }
 }
 
 /// <summary>

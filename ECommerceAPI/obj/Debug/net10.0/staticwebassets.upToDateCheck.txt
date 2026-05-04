@@ -1,0 +1,2 @@
+wwwroot\stripe-example.html
+C:\Users\pemil\OneDrive\Documents\EccomerceDevOps\ECommerceAPI\ECommerceAPI\wwwroot\stripe-example.html

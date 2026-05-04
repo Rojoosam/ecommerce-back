@@ -28,10 +28,20 @@ public class PaymentRequest
     public PaymentGateway Gateway { get; set; }
 
     /// <summary>
-    /// Información de la tarjeta
+    /// Información de la tarjeta (para simuladores)
     /// </summary>
-    [Required]
-    public CardInfo Card { get; set; } = null!;
+    public CardInfo? Card { get; set; }
+
+    /// <summary>
+    /// Token de pago de Stripe (para producción, reemplaza Card)
+    /// Obtenido desde Stripe.js en el cliente
+    /// </summary>
+    public string? StripeToken { get; set; }
+
+    /// <summary>
+    /// ID del Payment Method de Stripe (alternativa al token)
+    /// </summary>
+    public string? StripePaymentMethodId { get; set; }
 
     /// <summary>
     /// Descripción del pago (opcional)

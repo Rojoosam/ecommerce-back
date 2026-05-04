@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ejemplo - Pago con Stripe</title>
+    <script src="https://js.stripe.com/v3/"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        #card-element {
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #6772E5;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #5469D4;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .error {
+            color: #fa755a;
+            margin-top: 10px;
+        }
+        .success {
+            color: #0da574;
+            margin-top: 10px;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .info-box {
+            background-color: #f0f7ff;
+            border-left: 4px solid #6772E5;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        code {
+            background-color: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <h1>💳 Pago con Stripe</h1>
+    
+    <div class="info-box">
+        <strong>Tarjetas de Prueba:</strong><br>
+        - Exitosa: <code>4242 4242 4242 4242</code><br>
+        - Declinada: <code>4000 0000 0000 0002</code><br>
+        - 3D Secure: <code>4000 0025 0000 3155</code><br>
+        Fecha: Cualquier fecha futura | CVV: 123
+    </div>
+
+    <form id="payment-form">
+        <div class="form-group">
+            <label for="amount">Monto (USD)</label>
+            <input type="number" id="amount" name="amount" value="10.00" step="0.01" required>
+        </div>
+
+        <div class="form-group">
+            <label for="description">Descripción</label>
+            <input type="text" id="description" name="description" value="Compra de productos" required>
+        </div>
+
+        <div class="form-group">
+            <label for="card-element">Información de Tarjeta</label>
+            <div id="card-element">
+                <!-- Stripe.js insertará el elemento de tarjeta aquí -->
+            </div>
+        </div>
+
+        <button type="submit" id="submit-button">
+            Pagar
+        </button>
+
+        <div id="result"></div>
+    </form>
+
+    <script>
+        // CONFIGURACIÓN - Actualiza esta URL con la de tu API
+        const API_BASE_URL = 'https://localhost:7001'; // Cambia según tu configuración
+
+        // 1. Obtener la clave pública de Stripe desde el backend
+        async function getPublishableKey() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/stripeconfig/publishable-key`);
+                const data = await response.json();
+                return data.publishableKey;
+            } catch (error) {
+                console.error('Error obteniendo clave pública:', error);
+                alert('Error: No se pudo obtener la configuración de Stripe');
+                return null;
+            }
+        }
+
+        // 2. Inicializar Stripe
+        let stripe;
+        let cardElement;
+
+        async function initializeStripe() {
+            const publishableKey = await getPublishableKey();
+            
+            if (!publishableKey) {
+                document.getElementById('result').innerHTML = 
+                    '<div class="error">❌ Error: Configura las claves de Stripe en el backend</div>';
+                document.getElementById('submit-button').disabled = true;
+                return;
+            }
+
+            stripe = Stripe(publishableKey);
+            const elements = stripe.elements();
+            
+            // Crear el elemento de tarjeta
+            cardElement = elements.create('card', {
+                style: {
+                    base: {
+                        fontSize: '16px',
+                        color: '#32325d',
+                        fontFamily: 'Arial, sans-serif',
+                        '::placeholder': {
+                            color: '#aab7c4',
+                        },
+                    },
+                },
+            });
+
+            cardElement.mount('#card-element');
+
+            // Manejar errores del elemento de tarjeta
+            cardElement.on('change', (event) => {
+                const resultDiv = document.getElementById('result');
+                if (event.error) {
+                    resultDiv.innerHTML = `<div class="error">${event.error.message}</div>`;
+                } else {
+                    resultDiv.innerHTML = '';
+                }
+            });
+        }
+
+        // 3. Manejar el envío del formulario
+        document.getElementById('payment-form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const submitButton = document.getElementById('submit-button');
+            const resultDiv = document.getElementById('result');
+
+            submitButton.disabled = true;
+            submitButton.textContent = 'Procesando...';
+            resultDiv.innerHTML = '';
+
+            try {
+                // Crear Payment Method con Stripe.js
+                const {error, paymentMethod} = await stripe.createPaymentMethod({
+                    type: 'card',
+                    card: cardElement,
+                });
+
+                if (error) {
+                    throw new Error(error.message);
+                }
+
+                // Enviar el Payment Method al backend
+                const amount = parseFloat(document.getElementById('amount').value);
+                const description = document.getElementById('description').value;
+
+                const response = await fetch(`${API_BASE_URL}/api/payments/process`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        amount: amount,
+                        currency: 'USD',
+                        gateway: 0, // Stripe
+                        stripePaymentMethodId: paymentMethod.id,
+                        description: description,
+                        metadata: {
+                            source: 'frontend-example',
+                            timestamp: new Date().toISOString()
+                        }
+                    }),
+                });
+
+                const result = await response.json();
+
+                // Verificar si requiere autenticación adicional (3D Secure)
+                if (result.requiresAction && result.stripeClientSecret) {
+                    const {error: confirmError} = await stripe.confirmCardPayment(
+                        result.stripeClientSecret
+                    );
+
+                    if (confirmError) {
+                        throw new Error(confirmError.message);
+                    }
+
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            ✅ <strong>Pago Exitoso (con 3D Secure)</strong><br>
+                            ID de Transacción: ${result.transactionId}<br>
+                            Monto: $${result.amount} ${result.currency}
+                        </div>
+                    `;
+                } else if (result.status === 1) { // Approved
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            ✅ <strong>Pago Exitoso</strong><br>
+                            ID de Transacción: ${result.transactionId}<br>
+                            Monto: $${result.amount} ${result.currency}<br>
+                            Tarjeta: •••• ${result.cardLastFour}<br>
+                            Tiempo de procesamiento: ${result.processingTimeMs}ms
+                        </div>
+                    `;
+                    
+                    // Limpiar el formulario
+                    cardElement.clear();
+                } else {
+                    throw new Error(result.message || 'El pago no pudo ser procesado');
+                }
+
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        ❌ <strong>Error:</strong> ${error.message}
+                    </div>
+                `;
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = 'Pagar';
+            }
+        });
+
+        // Inicializar cuando se carga la página
+        initializeStripe();
+    </script>
+</body>
+</html>

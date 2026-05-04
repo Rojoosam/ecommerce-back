@@ -1,3 +1,7 @@
 <Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="../../../../../../TECMILENIO/Semestre 8/PYI Desarrollo Software/Microservicio .NET.docx" />
+  </Folder>
+  <Project Path="ECommerceAPI.Tests/ECommerceAPI.Tests.csproj" />
   <Project Path="ECommerceAPI/ECommerceAPI.csproj" />
 </Solution>
